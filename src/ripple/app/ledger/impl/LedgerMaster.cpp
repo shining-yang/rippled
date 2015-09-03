@@ -95,6 +95,9 @@ public:
 
     CanonicalTXSet mHeldTransactions;
 
+    // A set of transactions to replay during the next close
+    std::unique_ptr<LedgerReplay> replayData;
+
     LockType mCompleteLock;
     RangeSet mCompleteLedgers;
 
@@ -1533,6 +1536,16 @@ public:
     void clearLedgerCachePrior (LedgerIndex seq) override
     {
         mLedgerHistory.clearLedgerCachePrior (seq);
+    }
+
+    void takeReplay (std::unique_ptr<LedgerReplay> replay) override
+    {
+        replayData = std::move (replay);
+    }
+
+    std::unique_ptr<LedgerReplay> releaseReplay () override
+    {
+        return std::move (replayData);
     }
 
     // Fetch packs:
