@@ -68,8 +68,9 @@ extern create_genesis_t const create_genesis;
     3) Mutable ledgers cannot be shared.
 
     @note Presented to clients as ReadView
+    @note Calls virtuals in the constructor, so marked as final
 */
-class Ledger
+class Ledger final
     : public std::enable_shared_from_this <Ledger>
     , public DigestAwareReadView
     , public TxsRawView
@@ -200,9 +201,9 @@ public:
         SLE> const& sle) override;
 
     void
-    rawDestroyXRP (std::uint64_t feeDrops) override
+    rawDestroyXRP (XRPAmount const& fee) override
     {
-        info_.drops -= feeDrops;
+        info_.drops -= fee;
     }
 
     //
@@ -229,8 +230,6 @@ public:
 
     void setAccepted (std::uint32_t closeTime,
         int closeResolution, bool correctCloseTime);
-
-    void setAccepted ();
 
     void setImmutable ();
 
@@ -374,10 +373,6 @@ private:
     class sles_iter_impl;
     class txs_iter_impl;
 
-    void saveValidatedLedgerAsync(Job&, bool current)
-    {
-        saveValidatedLedger(current);
-    }
     bool saveValidatedLedger (bool current);
 
     void

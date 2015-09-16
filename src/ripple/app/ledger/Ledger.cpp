@@ -191,7 +191,7 @@ Ledger::Ledger (create_genesis_t, Config const& config)
     stateMap_->flushDirty (hotACCOUNT_NODE, info_.seq);
     updateHash();
     setClosed();
-    setAccepted();
+    setImmutable();
     setup(config);
 }
 
@@ -359,7 +359,7 @@ void Ledger::updateHash()
     info_.hash = sha512Half(
         HashPrefix::ledgerMaster,
         std::uint32_t(info_.seq),
-        std::uint64_t(info_.drops),
+        std::uint64_t(info_.drops.drops ()),
         info_.parentHash,
         info_.txHash,
         info_.accountHash,
@@ -402,24 +402,10 @@ void Ledger::setAccepted (
     // Used when we witnessed the consensus.  Rounds the close time, updates the
     // hash, and sets the ledger accepted and immutable.
     assert (closed());
-    info_.closeTime = correctCloseTime
-        ? roundCloseTime (closeTime, closeResolution)
-        : closeTime;
+
+    info_.closeTime = closeTime;
     info_.closeTimeResolution = closeResolution;
     info_.closeFlags = correctCloseTime ? 0 : sLCF_NoConsensusTime;
-    setImmutable ();
-}
-
-void Ledger::setAccepted ()
-{
-    // used when we acquired the ledger
-    // TODO: re-enable a test like the following:
-    // assert(closed() && (info_.closeTime != 0) &&
-    // (info_.closeTimeResolution != 0));
-    if ((info_.closeFlags & sLCF_NoConsensusTime) == 0)
-        info_.closeTime = roundCloseTime(
-            info_.closeTime, info_.closeTimeResolution);
-
     setImmutable ();
 }
 
@@ -584,7 +570,7 @@ bool Ledger::saveValidatedLedger (bool current)
         *db << boost::str (
             addLedger %
             to_string (getHash ()) % info_.seq % to_string (info_.parentHash) %
-            std::to_string (info_.drops) % info_.closeTime %
+            to_string (info_.drops) % info_.closeTime %
             info_.parentCloseTime % info_.closeTimeResolution %
             info_.closeFlags % to_string (info_.accountHash) %
             to_string (info_.txHash));
@@ -640,7 +626,7 @@ std::tuple<Ledger::pointer, std::uint32_t, uint256>
 loadLedgerHelper(std::string const& sqlSuffix)
 {
     Ledger::pointer ledger;
-    uint256 ledgerHash;
+    uint256 ledgerHash{};
     std::uint32_t ledgerSeq{0};
 
     auto db = getApp ().getLedgerDB ().checkoutDb ();
@@ -679,11 +665,15 @@ loadLedgerHelper(std::string const& sqlSuffix)
     ledgerSeq =
         rangeCheckedCast<std::uint32_t>(ledgerSeq64.value_or (0));
 
-    uint256 prevHash, accountHash, transHash;
-    ledgerHash.SetHexExact (sLedgerHash.value_or(""));
-    prevHash.SetHexExact (sPrevHash.value_or(""));
-    accountHash.SetHexExact (sAccountHash.value_or(""));
-    transHash.SetHexExact (sTransHash.value_or(""));
+    uint256 prevHash{}, accountHash{}, transHash{};
+    if (sLedgerHash)
+        ledgerHash.SetHexExact (*sLedgerHash);
+    if (sPrevHash)
+        prevHash.SetHexExact (*sPrevHash);
+    if (sAccountHash)
+        accountHash.SetHexExact (*sAccountHash);
+    if (sTransHash)
+        transHash.SetHexExact (*sTransHash);
 
     bool loaded = false;
     ledger = std::make_shared<Ledger>(prevHash,
@@ -711,9 +701,6 @@ void finishLoadByIndexOrHash(Ledger::pointer& ledger)
 
     ledger->setClosed ();
     ledger->setImmutable ();
-
-    if (getApp ().getLedgerMaster ().haveLedger ((ledger->info().seq)))
-        ledger->setAccepted ();
 
     WriteLog (lsTRACE, Ledger)
         << "Loaded ledger: " << to_string (ledger->getHash ());
@@ -835,7 +822,10 @@ Ledger::getHashesByIndex (std::uint32_t minSeq, std::uint32_t maxSeq)
         std::pair<uint256, uint256>& hashes =
                 ret[rangeCheckedCast<std::uint32_t>(ls)];
         hashes.first.SetHexExact (lh);
-        hashes.second.SetHexExact (ph.value_or (""));
+        if (ph)
+            hashes.second.SetHexExact (*ph);
+        else
+            hashes.second.zero ();
         if (!ph)
         {
             WriteLog (lsWARNING, Ledger)
@@ -1305,20 +1295,22 @@ bool Ledger::pendSaveValidated (bool isSynchronous, bool isCurrent)
     }
 
     if (isSynchronous)
-    {
         return saveValidatedLedger(isCurrent);
-    }
-    else if (isCurrent)
+
+    auto that = shared_from_this();
+    auto job = [that, isCurrent] (Job&) {
+        that->saveValidatedLedger(isCurrent);
+    };
+
+    if (isCurrent)
     {
-        getApp().getJobQueue ().addJob (jtPUBLEDGER, "Ledger::pendSave",
-            std::bind (&Ledger::saveValidatedLedgerAsync, shared_from_this (),
-                       std::placeholders::_1, isCurrent));
+        getApp().getJobQueue().addJob(
+            jtPUBLEDGER, "Ledger::pendSave", job);
     }
     else
     {
-        getApp().getJobQueue ().addJob (jtPUBOLDLEDGER, "Ledger::pendOldSave",
-            std::bind (&Ledger::saveValidatedLedgerAsync, shared_from_this (),
-                       std::placeholders::_1, isCurrent));
+        getApp().getJobQueue ().addJob(
+            jtPUBOLDLEDGER, "Ledger::pendOldSave", job);
     }
 
     return true;

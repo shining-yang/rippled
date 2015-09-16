@@ -642,11 +642,14 @@ void LedgerConsensusImp::handleLCL (uint256 const& lclHash)
 
             // Tell the ledger acquire system that we need the consensus ledger
             mAcquiringLedger = mPrevLedgerHash;
-            getApp().getJobQueue().addJob (jtADVANCE, "getConsensusLedger",
-                std::bind (
-                    &InboundLedgers::acquire,
-                    &getApp().getInboundLedgers(),
-                    mPrevLedgerHash, 0, InboundLedger::fcCONSENSUS));
+            auto& previousHash = mPrevLedgerHash;
+            getApp().getJobQueue().addJob (
+                jtADVANCE, "getConsensusLedger",
+                [previousHash] (Job&) {
+                    getApp().getInboundLedgers().acquire(
+                        previousHash, 0, InboundLedger::fcCONSENSUS);
+                });
+
             mHaveCorrectLCL = false;
         }
         return;
@@ -968,12 +971,19 @@ void LedgerConsensusImp::accept (std::shared_ptr<SHAMap> set)
 
     std::uint32_t closeTime = roundCloseTime (
         mOurPosition->getCloseTime (), mCloseResolution);
-    bool closeTimeCorrect = true;
 
-    if (closeTime == 0)
+    // If we don't have a close time, then we just agree to disagree
+    bool const closeTimeCorrect = (closeTime != 0);
+
+    // Switch to new semantics on Sep 30, 2015 at 11:00:00am PDT
+    if (mPreviousLedger->info().closeTime > 497296800)
     {
-        // we agreed to disagree
-        closeTimeCorrect = false;
+        // Ledger close times should increase strictly monotonically
+        if (closeTime <= mPreviousLedger->info().closeTime)
+            closeTime = mPreviousLedger->info().closeTime + 1;
+    }
+    else if (!closeTimeCorrect)
+    {
         closeTime = mPreviousLedger->info().closeTime + 1;
     }
 

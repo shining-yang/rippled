@@ -41,17 +41,13 @@ class CreateOffer
 public:
     CreateOffer (ApplyContext& ctx)
         : Transactor(ctx)
+        , stepCounter_ (1000, j_)
     {
     }
 
     static
     TER
     preflight (PreflightContext const& ctx);
-
-    /** Returns the reserve the account would have if an offer was added. */
-    // VFALCO This function is not needed just inline the behavior
-    STAmount
-    getAccountReserve (SLE::pointer account); // const?
 
     void
     preCompute() override;
@@ -120,6 +116,9 @@ private:
     // What kind of offer we are placing
     CrossType cross_type_;
     std::uint32_t deprecatedWrongOwnerCount_;
+
+    // The number of steps to take through order books while crossing
+    OfferStream::StepCounter stepCounter_;
 };
 
 }

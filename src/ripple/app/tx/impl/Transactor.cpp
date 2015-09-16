@@ -25,6 +25,7 @@
 #include <ripple/core/Config.h>
 #include <ripple/core/LoadFeeTrack.h>
 #include <ripple/json/to_string.h>
+#include <ripple/ledger/View.h>
 #include <ripple/protocol/Feature.h>
 #include <ripple/protocol/Indexes.h>
 #include <ripple/protocol/types.h>
@@ -43,8 +44,8 @@ preflight1 (PreflightContext const& ctx)
     }
 
     // No point in going any further if the transaction fee is malformed.
-    auto const fee = ctx.tx.getTransactionFee ();
-    if (!fee.native () || fee < beast::zero || !isLegalNet (fee))
+    auto const fee = ctx.tx.getFieldAmount (sfFee);
+    if (!fee.native () || fee.negative () || !isLegalAmount (fee.xrp ()))
     {
         JLOG(ctx.j.debug) << "preflight1: invalid fee";
         return temBAD_FEE;
@@ -113,30 +114,29 @@ std::uint64_t Transactor::calculateBaseFee ()
 
 TER Transactor::payFee ()
 {
-    STAmount saPaid = tx().getTransactionFee ();
-
-    if (!isLegalNet (saPaid) || saPaid < zero)
+    auto const feePaid = tx().getFieldAmount (sfFee).xrp ();
+    if (!isLegalAmount (feePaid) || feePaid < beast::zero)
         return temBAD_FEE;
 
     // Only check fee is sufficient when the ledger is open.
-    if (view().open() && saPaid < mFeeDue)
+    if (view().open() && feePaid < mFeeDue)
     {
         JLOG(j_.trace) << "Insufficient fee paid: " <<
-            saPaid.getText () << "/" << mFeeDue.getText ();
+            to_string (feePaid) << "/" << to_string (mFeeDue);
         return telINSUF_FEE_P;
     }
 
-    if (saPaid == zero)
+    if (feePaid == zero)
         return tesSUCCESS;
 
     auto const sle = view().peek(
         keylet::account(account_));
 
-    if (mSourceBalance < saPaid)
+    if (mSourceBalance < feePaid)
     {
         JLOG(j_.trace) << "Insufficient balance:" <<
-            " balance=" << mSourceBalance.getText () <<
-            " paid=" << saPaid.getText ();
+            " balance=" << to_string (mSourceBalance) <<
+            " paid=" << to_string (feePaid);
 
         if ((mSourceBalance > zero) && ! view().open())
         {
@@ -150,7 +150,7 @@ TER Transactor::payFee ()
     // Deduct the fee, so it's not available during the transaction.
     // Will only write the account back, if the transaction succeeds.
 
-    mSourceBalance -= saPaid;
+    mSourceBalance -= feePaid;
     sle->setFieldAmount (sfBalance, mSourceBalance);
 
     // VFALCO Should we call view().rawDestroyXRP() here as well?
@@ -226,12 +226,12 @@ TER Transactor::apply ()
     }
 
     auto const& fees = view().fees();
-    mFeeDue = STAmount (getApp().getFeeTrack().scaleFeeLoad(
-        calculateBaseFee(), fees.base, fees.units, view().flags() & tapADMIN));
+    mFeeDue = getApp().getFeeTrack().scaleFeeLoad(
+        calculateBaseFee(), fees.base, fees.units, view().flags() & tapADMIN);
 
     if (sle)
     {
-        mPriorBalance   = sle->getFieldAmount (sfBalance);
+        mPriorBalance   = STAmount ((*sle)[sfBalance]).xrp ();
         mSourceBalance  = mPriorBalance;
         mHasAuthKey     = sle->isFieldPresent (sfRegularKey);
 
@@ -454,6 +454,25 @@ TER Transactor::checkMultiSign ()
 
 //------------------------------------------------------------------------------
 
+void removeUnfundedOffers (ApplyView& view, std::vector<uint256> const& offers)
+{
+    int removed = 0;
+
+    for (auto const& index : offers)
+    {
+        auto const sleOffer = view.peek (keylet::offer (index));
+        if (sleOffer)
+        {
+            // offer is unfunded
+            offerDelete (view, sleOffer);
+            if (++removed == 1000)
+                return;
+        }
+    }
+}
+
+//------------------------------------------------------------------------------
+
 static
 inline
 void
@@ -530,9 +549,9 @@ Transactor::operator()()
     }
 
     bool didApply = isTesSuccess (terResult);
-    auto fee = tx().getTransactionFee ();
+    auto fee = tx().getFieldAmount(sfFee).xrp ();
 
-    if (view().size() > 5200)
+    if (ctx_.size() > 5200)
         terResult = tecOVERSIZE;
 
     if ((terResult == tecOVERSIZE) ||
@@ -541,6 +560,30 @@ Transactor::operator()()
         // only claim the transaction fee
         JLOG(j_.debug) <<
             "Reprocessing tx " << txID << " to only claim fee";
+
+        std::vector<uint256> removedOffers;
+        if (terResult == tecOVERSIZE)
+        {
+            ctx_.visit (
+                [&removedOffers](
+                    uint256 const& index,
+                    bool isDelete,
+                    std::shared_ptr <SLE const> const& before,
+                    std::shared_ptr <SLE const> const& after)
+                {
+                    if (isDelete)
+                    {
+                        assert (before && after);
+                        if (before && after &&
+                            (before->getType() == ltOFFER) &&
+                            (before->getFieldAmount(sfTakerPays) == after->getFieldAmount(sfTakerPays)))
+                        {
+                            // Removal of offer found or made unfunded
+                            removedOffers.push_back (index);
+                        }
+                    }
+                });
+        }
 
         ctx_.discard();
 
@@ -558,7 +601,7 @@ Transactor::operator()()
                 terResult = tefPAST_SEQ;
             else
             {
-                STAmount balance    = txnAcct->getFieldAmount (sfBalance);
+                auto const balance = txnAcct->getFieldAmount (sfBalance).xrp ();
 
                 // We retry/reject the transaction if the account
                 // balance is zero or we're applying against an open
@@ -575,6 +618,10 @@ Transactor::operator()()
                         fee = balance;
                     txnAcct->setFieldAmount (sfBalance, balance - fee);
                     txnAcct->setFieldU32 (sfSequence, t_seq + 1);
+
+                    if (terResult == tecOVERSIZE)
+                       removeUnfundedOffers (view(), removedOffers);
+
                     view().update (txnAcct);
                     didApply = true;
                 }
@@ -597,23 +644,18 @@ Transactor::operator()()
 
         if(view().closed())
         {
-            // VFALCO Fix this nonsense with Amount
-            // Charge whatever fee they specified. We break the
-            // encapsulation of STAmount here and use "special
-            // knowledge" - namely that a native amount is
-            // stored fully in the mantissa:
+            // Charge whatever fee they specified.
 
-            // The transactor guarantees these will never trigger
-            if (!fee.native () || fee.negative ())
+            // The transactor guarantees this will never trigger
+            if (fee < zero)
             {
                 // VFALCO Log to journal here
                 // JLOG(journal.fatal) << "invalid fee";
-                throw std::logic_error(
-                    "amount is negative!");
+                throw std::logic_error("amount is negative!");
             }
 
             if (fee != zero)
-                ctx_.destroyXRP (fee.mantissa ());
+                ctx_.destroyXRP (fee);
         }
 
         ctx_.apply(terResult);

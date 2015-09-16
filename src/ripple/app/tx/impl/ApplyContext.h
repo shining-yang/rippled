@@ -23,6 +23,7 @@
 #include <ripple/ledger/ApplyViewImpl.h>
 #include <ripple/core/Config.h>
 #include <ripple/protocol/STTx.h>
+#include <ripple/protocol/XRPAmount.h>
 #include <beast/utility/Journal.h>
 #include <boost/optional.hpp>
 #include <utility>
@@ -79,10 +80,22 @@ public:
     void
     apply (TER);
 
+    /** Get the number of unapplied changes. */
+    std::size_t
+    size ();
+
+    /** Visit unapplied changes. */
     void
-    destroyXRP (std::uint64_t feeDrops)
+    visit (std::function <void (
+        uint256 const& key,
+        bool isDelete,
+        std::shared_ptr <SLE const> const& before,
+        std::shared_ptr <SLE const> const& after)> const& func);
+
+    void
+    destroyXRP (XRPAmount const& fee)
     {
-        view_->rawDestroyXRP(feeDrops);
+        view_->rawDestroyXRP(fee);
     }
 
 private:

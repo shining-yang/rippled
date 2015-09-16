@@ -148,13 +148,6 @@ ApplyViewBase::update(
     items_.update(*base_, sle);
 }
 
-std::size_t
-ApplyViewBase::size ()
-{
-    return items_.size ();
-}
-
-
 //---
 
 void
@@ -180,9 +173,9 @@ ApplyViewBase::rawReplace(
 
 void
 ApplyViewBase::rawDestroyXRP(
-    std::uint64_t feeDrops)
+    XRPAmount const& fee)
 {
-    items_.destroyXRP(feeDrops);
+    items_.destroyXRP(fee);
 }
 
 } // detail
