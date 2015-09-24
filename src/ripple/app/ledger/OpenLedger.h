@@ -147,7 +147,7 @@ public:
         @param ledger A new closed ledger
     */
     void
-    accept (Rules const& rules,
+    accept (Application& app, Rules const& rules,
         std::shared_ptr<Ledger const> const& ledger,
             OrderedTxs const& locals, bool retriesFirst,
                 OrderedTxs& retries, ApplyFlags flags,
@@ -162,10 +162,11 @@ public:
     template <class FwdRange>
     static
     void
-    apply (OpenView& view, ReadView const& check,
-        FwdRange const& txs, OrderedTxs& retries,
-            ApplyFlags flags, HashRouter& router,
-                Config const& config, beast::Journal j);
+    apply (Application& app, OpenView& view,
+        ReadView const& check, FwdRange const& txs,
+            OrderedTxs& retries, ApplyFlags flags,
+                HashRouter& router, Config const& config,
+                    beast::Journal j);
 
 private:
     enum Result
@@ -181,28 +182,18 @@ private:
 
     static
     Result
-    apply_one (OpenView& view, std::shared_ptr<
-        STTx const> const& tx, bool retry,
-            ApplyFlags flags, HashRouter& router,
-                Config const& config, beast::Journal j);
-
-public:
-    //--------------------------------------------------------------------------
-    //
-    // TEST CODE
-    //
-    // Verify that the open ledger has the right contents
-    // This is called while holding the master and ledger master mutexes
-    bool
-    verify (Ledger const& ledger,
-        std::string const& suffix = "") const;
+    apply_one (Application& app, OpenView& view,
+        std::shared_ptr< STTx const> const& tx,
+            bool retry, ApplyFlags flags,
+                HashRouter& router, Config const& config,
+                    beast::Journal j);
 };
 
 //------------------------------------------------------------------------------
 
 template <class FwdRange>
 void
-OpenLedger::apply (OpenView& view,
+OpenLedger::apply (Application& app, OpenView& view,
     ReadView const& check, FwdRange const& txs,
         OrderedTxs& retries, ApplyFlags flags,
             HashRouter& router, Config const& config,
@@ -218,7 +209,7 @@ OpenLedger::apply (OpenView& view,
             auto const tx = *iter;
             if (check.txExists(tx->getTransactionID()))
                 continue;
-            auto const result = apply_one(view,
+            auto const result = apply_one(app, view,
                 tx, true, flags, router, config, j);
             if (result == Result::retry)
                 retries.insert(tx);
@@ -238,7 +229,7 @@ OpenLedger::apply (OpenView& view,
         auto iter = retries.begin();
         while (iter != retries.end())
         {
-            switch (apply_one(view,
+            switch (apply_one(app, view,
                 iter->second, retry, flags,
                     router, config, j))
             {

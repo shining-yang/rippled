@@ -22,6 +22,7 @@
 
 #include <ripple/app/ledger/Ledger.h>
 #include <ripple/app/ledger/LedgerProposal.h>
+#include <ripple/app/main/Application.h>
 #include <ripple/app/misc/CanonicalTXSet.h>
 #include <ripple/app/misc/FeeVote.h>
 #include <ripple/app/tx/InboundTransactions.h>
@@ -79,10 +80,25 @@ public:
   @param openLgr               true if applyLedger is open, else false.
 */
 void applyTransactions (
+    Application& app,
     SHAMap const* set,
     OpenView& view,
     Ledger::ref checkLedger,
     CanonicalTXSet& retriableTransactions,
+    ApplyFlags flags);
+
+/** Apply a single transaction to a ledger
+  @param view                   The open view to apply to
+  @param txn                    The transaction to apply
+  @param retryAssured           True if another pass is assured
+  @param flags                  Flags for transactor
+  @return                       resultSuccess, resultFail or resultRetry
+*/
+int applyTransaction (
+    Application& app,
+    OpenView& view,
+    std::shared_ptr<STTx const> const& txn,
+    bool retryAssured,
     ApplyFlags flags);
 
 } // ripple

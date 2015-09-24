@@ -20,13 +20,13 @@
 #ifndef RIPPLE_APP_LEDGER_LEDGERMASTER_H_INCLUDED
 #define RIPPLE_APP_LEDGER_LEDGERMASTER_H_INCLUDED
 
+#include <ripple/app/main/Application.h>
 #include <ripple/app/ledger/Ledger.h>
 #include <ripple/app/ledger/LedgerHolder.h>
 #include <ripple/basics/chrono.h>
 #include <ripple/basics/StringUtilities.h>
 #include <ripple/protocol/RippleLedgerHash.h>
 #include <ripple/protocol/STValidation.h>
-#include <ripple/core/Config.h>
 #include <beast/insight/Collector.h>
 #include <beast/threads/Stoppable.h>
 #include <beast/threads/UnlockGuard.h>
@@ -37,6 +37,14 @@
 namespace ripple {
 
 class Peer;
+
+struct LedgerReplay
+{
+    std::map< int, std::shared_ptr<STTx const> > txns_;
+    std::uint32_t closeTime_;
+    int closeFlags_;
+    Ledger::pointer prevLedger_;
+};
 
 // Tracks the current ledger and any ledgers in the process of closing
 // Tracks ledger history
@@ -70,10 +78,7 @@ public:
     virtual LockType& peekMutex () = 0;
 
     // The current ledger is the ledger we believe new transactions should go in
-    virtual Ledger::pointer getCurrentLedger () = 0;
-
-    // The holder for the current ledger
-    virtual LedgerHolder& getCurrentLedgerHolder() = 0;
+    virtual std::shared_ptr<ReadView const> getCurrentLedger () = 0;
 
     // The finalized ledger is the last closed/accepted ledger
     virtual Ledger::pointer getClosedLedger () = 0;
@@ -100,16 +105,13 @@ public:
 
     virtual std::uint32_t getEarliestFetch () = 0;
 
-    virtual void pushLedger (Ledger::pointer newLedger) = 0;
-    virtual void pushLedger (Ledger::pointer newLCL, Ledger::pointer newOL) = 0;
     virtual bool storeLedger (Ledger::pointer) = 0;
     virtual void forceValid (Ledger::pointer) = 0;
 
     virtual void setFullLedger (
         Ledger::pointer ledger, bool isSynchronous, bool isCurrent) = 0;
 
-    virtual void switchLedgers (
-        Ledger::pointer lastClosed, Ledger::pointer newCurrent) = 0;
+    virtual void switchLCL (Ledger::pointer lastClosed) = 0;
 
     virtual void failedSave(std::uint32_t seq, uint256 const& hash) = 0;
 
@@ -173,6 +175,10 @@ public:
 
     virtual void clearLedgerCachePrior (LedgerIndex seq) = 0;
 
+    // ledger replay
+    virtual void takeReplay (std::unique_ptr<LedgerReplay> replay) = 0;
+    virtual std::unique_ptr<LedgerReplay> releaseReplay () = 0;
+
     // Fetch Packs
     virtual
     void gotFetchPack (
@@ -202,7 +208,7 @@ public:
 
 std::unique_ptr <LedgerMaster>
 make_LedgerMaster (
-    Config const& config,
+    Application& app,
     Stopwatch& stopwatch,
     beast::Stoppable& parent,
     beast::insight::Collector::ptr const& collector,
