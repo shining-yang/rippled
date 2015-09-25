@@ -87,7 +87,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug.classic|x64'">
     <ClCompile>
       <PreprocessorDefinitions>HAVE_USLEEP=1;SOCI_CXX_C11=1;_WIN32_WINNT=0x6000;DEBUG;DEPRECATED_IN_MAC_OS_X_VERSION_10_7_AND_LATER;OPENSSL_NO_SSL2;WIN32_CONSOLE;_CRTDBG_MAP_ALLOC;_CRT_SECURE_NO_WARNINGS;_DEBUG;_SCL_SECURE_NO_WARNINGS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\build\proto;..\..\src;..\..\src\beast;..\..\src\protobuf\src;..\..\src\protobuf\vsprojects;..\..\src\soci\include;..\..\src\soci\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\build\proto;..\..\src;..\..\src\beast;..\..\src\protobuf\src;..\..\src\protobuf\vsprojects;..\..\src\soci\include;..\..\src\soci\src;C:\lib\openssl-VC-64\include;C:\lib\boost_1_59_0</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4800;4244;4267;4018</DisableSpecificWarnings>
       <ExceptionHandling>Async</ExceptionHandling>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -119,12 +119,13 @@
       <GenerateDebugInformation>True</GenerateDebugInformation>
       <TargetMachine>MachineX64</TargetMachine>
       <AdditionalOptions>/MANIFEST /TLBID:1 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalLibraryDirectories>C:\lib\openssl-VC-64\lib;C:\lib\boost_1_59_0\stage\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
     <ClCompile>
       <PreprocessorDefinitions>HAVE_USLEEP=1;SOCI_CXX_C11=1;_WIN32_WINNT=0x6000;DEBUG;DEPRECATED_IN_MAC_OS_X_VERSION_10_7_AND_LATER;OPENSSL_NO_SSL2;WIN32_CONSOLE;_CRTDBG_MAP_ALLOC;_CRT_SECURE_NO_WARNINGS;_DEBUG;_SCL_SECURE_NO_WARNINGS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\build\proto;..\..\src;..\..\src\beast;..\..\src\protobuf\src;..\..\src\protobuf\vsprojects;..\..\src\soci\include;..\..\src\soci\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\build\proto;..\..\src;..\..\src\beast;..\..\src\protobuf\src;..\..\src\protobuf\vsprojects;..\..\src\soci\include;..\..\src\soci\src;C:\lib\openssl-VC-64\include;C:\lib\boost_1_59_0</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4800;4244;4267;4018</DisableSpecificWarnings>
       <ExceptionHandling>Async</ExceptionHandling>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -156,12 +157,13 @@
       <GenerateDebugInformation>True</GenerateDebugInformation>
       <TargetMachine>MachineX64</TargetMachine>
       <AdditionalOptions>/MANIFEST /TLBID:1 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalLibraryDirectories>C:\lib\openssl-VC-64\lib;C:\lib\boost_1_59_0\stage\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release.classic|x64'">
     <ClCompile>
       <PreprocessorDefinitions>HAVE_USLEEP=1;SOCI_CXX_C11=1;_WIN32_WINNT=0x6000;DEPRECATED_IN_MAC_OS_X_VERSION_10_7_AND_LATER;NDEBUG;OPENSSL_NO_SSL2;WIN32_CONSOLE;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\build\proto;..\..\src;..\..\src\beast;..\..\src\protobuf\src;..\..\src\protobuf\vsprojects;..\..\src\soci\include;..\..\src\soci\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\build\proto;..\..\src;..\..\src\beast;..\..\src\protobuf\src;..\..\src\protobuf\vsprojects;..\..\src\soci\include;..\..\src\soci\src;C:\lib\openssl-VC-64\include;C:\lib\boost_1_59_0</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4800;4244;4267;4018</DisableSpecificWarnings>
       <ExceptionHandling>Async</ExceptionHandling>
       <FloatingPointModel>Precise</FloatingPointModel>
@@ -191,12 +193,13 @@
       <GenerateDebugInformation>True</GenerateDebugInformation>
       <TargetMachine>MachineX64</TargetMachine>
       <AdditionalOptions>/MANIFEST /TLBID:1 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalLibraryDirectories>C:\lib\openssl-VC-64\lib;C:\lib\boost_1_59_0\stage\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
     <ClCompile>
       <PreprocessorDefinitions>HAVE_USLEEP=1;SOCI_CXX_C11=1;_WIN32_WINNT=0x6000;DEPRECATED_IN_MAC_OS_X_VERSION_10_7_AND_LATER;NDEBUG;OPENSSL_NO_SSL2;WIN32_CONSOLE;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\build\proto;..\..\src;..\..\src\beast;..\..\src\protobuf\src;..\..\src\protobuf\vsprojects;..\..\src\soci\include;..\..\src\soci\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\build\proto;..\..\src;..\..\src\beast;..\..\src\protobuf\src;..\..\src\protobuf\vsprojects;..\..\src\soci\include;..\..\src\soci\src;C:\lib\openssl-VC-64\include;C:\lib\boost_1_59_0</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4800;4244;4267;4018</DisableSpecificWarnings>
       <ExceptionHandling>Async</ExceptionHandling>
       <FloatingPointModel>Precise</FloatingPointModel>
@@ -226,6 +229,7 @@
       <GenerateDebugInformation>True</GenerateDebugInformation>
       <TargetMachine>MachineX64</TargetMachine>
       <AdditionalOptions>/MANIFEST /TLBID:1 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalLibraryDirectories>C:\lib\openssl-VC-64\lib;C:\lib\boost_1_59_0\stage\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -80,3 +80,4 @@ rippled-build.log
 
 # Profiling data
 gmon.out
+/Builds/VisualStudio2015
