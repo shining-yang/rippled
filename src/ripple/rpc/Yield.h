@@ -85,7 +85,6 @@ enum class UseCoroutines {no, yes};
 struct YieldStrategy
 {
     enum class Streaming {no, yes};
-    enum class UseCoroutines {no, yes};
 
     /** Is the data streamed, or generated monolithically? */
     Streaming streaming = Streaming::no;
