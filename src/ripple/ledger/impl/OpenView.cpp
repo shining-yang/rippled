@@ -95,8 +95,11 @@ OpenView::OpenView (open_ledger_t,
     , hold_ (std::move(hold))
 {
     info_.open = true;
+    info_.validated = false;
+    info_.accepted = false;
     info_.seq = base_->info().seq + 1;
     info_.parentCloseTime = base_->info().closeTime;
+    info_.parentHash = base_->info().hash;
 }
 
 OpenView::OpenView (ReadView const* base,
@@ -176,6 +179,13 @@ OpenView::slesEnd() const ->
     std::unique_ptr<sles_type::iter_base>
 {
     return items_.slesEnd(*base_);
+}
+
+auto
+OpenView::slesUpperBound(uint256 const& key) const ->
+    std::unique_ptr<sles_type::iter_base>
+{
+    return items_.slesUpperBound(*base_, key);
 }
 
 auto
