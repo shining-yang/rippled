@@ -59,8 +59,8 @@ PeerImp::PeerImp (Application& app, id_t id, endpoint_type remote_endpoint,
     : Child (overlay)
     , app_ (app)
     , id_(id)
-    , sink_(deprecatedLogs().journal("Peer"), makePrefix(id))
-    , p_sink_(deprecatedLogs().journal("Protocol"), makePrefix(id))
+    , sink_(app_.journal("Peer"), makePrefix(id))
+    , p_sink_(app_.journal("Protocol"), makePrefix(id))
     , journal_ (sink_)
     , p_journal_(p_sink_)
     , ssl_bundle_(std::move(ssl_bundle))
@@ -1051,7 +1051,7 @@ PeerImp::onMessage (std::shared_ptr <protocol::TMTransaction> const& m)
                 flags |= SF_TRUSTED;
             }
 
-            if (! getConfig().VALIDATION_PRIV.isSet())
+            if (! app_.config().VALIDATION_PRIV.isSet())
             {
                 // For now, be paranoid and have each validator
                 // check each transaction, regardless of source
@@ -1208,7 +1208,7 @@ PeerImp::onMessage (std::shared_ptr <protocol::TMProposeSet> const& m)
     RippleAddress signerPublic = RippleAddress::createNodePublic (
         strCopy (set.nodepubkey ()));
 
-    if (signerPublic == getConfig ().VALIDATION_PUB)
+    if (signerPublic == app_.config().VALIDATION_PUB)
     {
         p_journal_.trace << "Proposal: self";
         return;
