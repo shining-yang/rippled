@@ -30,7 +30,7 @@
 #include <ripple/test/jtx/utility.h>
 #include <ripple/app/tx/apply.h>
 #include <ripple/app/ledger/LedgerTiming.h>
-#include <ripple/app/paths/FindPaths.h>
+#include <ripple/app/paths/Pathfinder.h>
 #include <ripple/basics/Slice.h>
 #include <ripple/json/to_string.h>
 #include <ripple/protocol/ErrorCodes.h>
@@ -50,20 +50,44 @@ namespace test {
 
 namespace jtx {
 
+Env::AppBundle::AppBundle(Application* app_)
+    : app (app_)
+{
+}
+
+Env::AppBundle::AppBundle(std::unique_ptr<Config const> config)
+{
+    auto logs = std::make_unique<Logs>();
+    owned = make_Application(
+        std::move(config), std::move(logs));
+    app = owned.get();
+}
+
+//------------------------------------------------------------------------------
+
+static
+std::unique_ptr<Config const>
+makeConfig()
+{
+    auto p = std::make_unique<Config>();
+    setupConfigForUnitTests(*p);
+    return std::unique_ptr<Config const>(p.release());
+}
+
 // VFALCO Could wrap the log in a Journal here
 Env::Env (beast::unit_test::suite& test_)
-    : test(test_)
-    , config()
-    , master("master", generateKeyPair(
+    : test (test_)
+    , master ("master", generateKeyPair(
         KeyType::secp256k1,
             generateSeed("masterpassphrase")))
+    , bundle_ (makeConfig())
     , closed_ (std::make_shared<Ledger>(
-        create_genesis, config, app().family()))
+        create_genesis, app().config(), app().family()))
     , cachedSLEs_ (std::chrono::seconds(5), stopwatch_)
-    , openLedger (closed_, config, cachedSLEs_, journal)
+    , openLedger (closed_, app().config(), cachedSLEs_, journal)
 {
     memoize(master);
-    initializePathfinding();
+    Pathfinder::initPathTable();
 }
 
 std::shared_ptr<ReadView const>
@@ -98,7 +122,7 @@ Env::close(NetClock::time_point const& closeTime)
         OpenView accum(&*next);
         OpenLedger::apply(app(), accum, *closed_,
             txs, retries, applyFlags(), *router,
-                config, journal);
+                app().config(), journal);
         accum.apply(*next);
     }
     // To ensure that the close time is exact and not rounded, we don't
@@ -254,7 +278,7 @@ Env::submit (JTx const& jt)
             {
                 std::tie(ter_, didApply) = ripple::apply(
                     app(), view, *stx, applyFlags(),
-                        directSigVerify, config,
+                        directSigVerify, app().config(),
                             beast::Journal{});
                 return didApply;
             });
