@@ -1596,9 +1596,6 @@
     <ClInclude Include="..\..\src\beast\beast\threads\semaphore.h">
       <Filter>beast\threads</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\beast\beast\threads\SharedData.h">
-      <Filter>beast\threads</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\src\beast\beast\threads\SharedLockGuard.h">
       <Filter>beast\threads</Filter>
     </ClInclude>
@@ -1701,13 +1698,7 @@
     <ClInclude Include="..\..\src\beast\beast\utility\meta.h">
       <Filter>beast\utility</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\beast\beast\utility\noexcept.h">
-      <Filter>beast\utility</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\src\beast\beast\utility\PropertyStream.h">
-      <Filter>beast\utility</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\beast\beast\utility\static_initializer.h">
       <Filter>beast\utility</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\beast\beast\utility\tagged_integer.h">
@@ -1720,9 +1711,6 @@
       <Filter>beast\utility\tests</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\beast\beast\utility\tests\Journal.test.cpp">
-      <Filter>beast\utility\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\beast\beast\utility\tests\static_initializer.test.cpp">
       <Filter>beast\utility\tests</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\beast\beast\utility\tests\tagged_integer.test.cpp">
@@ -2448,6 +2436,9 @@
     <ClCompile Include="..\..\src\ripple\app\tests\DeliverMin.test.cpp">
       <Filter>ripple\app\tests</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\ripple\app\tests\HashRouter_test.cpp">
+      <Filter>ripple\app\tests</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\ripple\app\tests\MultiSign.test.cpp">
       <Filter>ripple\app\tests</Filter>
     </ClCompile>
@@ -3114,6 +3105,9 @@
     <ClCompile Include="..\..\src\ripple\ledger\tests\PaymentSandbox_test.cpp">
       <Filter>ripple\ledger\tests</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\ripple\ledger\tests\PendingSaves_test.cpp">
+      <Filter>ripple\ledger\tests</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\ripple\ledger\tests\SkipList_test.cpp">
       <Filter>ripple\ledger\tests</Filter>
     </ClCompile>
@@ -3316,6 +3310,12 @@
       <Filter>ripple\overlay\impl</Filter>
     </ClCompile>
     <ClInclude Include="..\..\src\ripple\overlay\impl\TMHello.h">
+      <Filter>ripple\overlay\impl</Filter>
+    </ClInclude>
+    <ClCompile Include="..\..\src\ripple\overlay\impl\TrafficCount.cpp">
+      <Filter>ripple\overlay\impl</Filter>
+    </ClCompile>
+    <ClInclude Include="..\..\src\ripple\overlay\impl\TrafficCount.h">
       <Filter>ripple\overlay\impl</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\ripple\overlay\impl\Tuning.h">
@@ -3724,6 +3724,9 @@
       <Filter>ripple\protocol</Filter>
     </ClInclude>
     <ClCompile Include="..\..\src\ripple\protocol\tests\BuildInfo.test.cpp">
+      <Filter>ripple\protocol\tests</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ripple\protocol\tests\digest_test.cpp">
       <Filter>ripple\protocol\tests</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\ripple\protocol\tests\InnerObjectFormats.test.cpp">

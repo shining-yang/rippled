@@ -295,11 +295,11 @@ checkTxJsonFields (
 //------------------------------------------------------------------------------
 
 // A move-only struct that makes it easy to return either a Json::Value or a
-// STTx::pointer from transactionPreProcessImpl ().
+// std::shared_ptr<STTx const> from transactionPreProcessImpl ().
 struct transactionPreProcessResult
 {
     Json::Value const first;
-    STTx::pointer const second;
+    std::shared_ptr<STTx const> const second;
 
     transactionPreProcessResult () = delete;
     transactionPreProcessResult (transactionPreProcessResult const&) = delete;
@@ -318,7 +318,7 @@ struct transactionPreProcessResult
     , second ()
     { }
 
-    transactionPreProcessResult (STTx::pointer&& st)
+    transactionPreProcessResult (std::shared_ptr<STTx const>&& st)
     : first ()
     , second (std::move (st))
     { }
@@ -463,7 +463,7 @@ transactionPreProcessImpl (
         return std::move (err);
     }
 
-    STTx::pointer stpTrans;
+    std::shared_ptr<STTx> stpTrans;
     try
     {
         // If we're generating a multi-signature the SigningPubKey must be
@@ -501,12 +501,13 @@ transactionPreProcessImpl (
         stpTrans->sign (keypair.secretKey);
     }
 
-    return std::move (stpTrans);
+    return transactionPreProcessResult {std::move (stpTrans)};
 }
 
 static
 std::pair <Json::Value, Transaction::pointer>
-transactionConstructImpl (STTx::pointer stpTrans, Application& app)
+transactionConstructImpl (std::shared_ptr<STTx const> const& stpTrans,
+    Rules const& rules, Application& app)
 {
     std::pair <Json::Value, Transaction::pointer> ret;
 
@@ -514,8 +515,8 @@ transactionConstructImpl (STTx::pointer stpTrans, Application& app)
     Transaction::pointer tpTrans;
     {
         std::string reason;
-        tpTrans = std::make_shared<Transaction>(stpTrans, Validate::NO,
-            directSigVerify, reason, app);
+        tpTrans = std::make_shared<Transaction>(
+            stpTrans, reason, app);
         if (tpTrans->getStatus () != NEW)
         {
             ret.first = RPC::make_error (rpcINTERNAL,
@@ -534,7 +535,7 @@ transactionConstructImpl (STTx::pointer stpTrans, Application& app)
             tpTrans->getSTransaction ()->add (s);
 
             Transaction::pointer tpTransNew =
-                Transaction::sharedTransaction(s.getData(), Validate::YES, app);
+                Transaction::sharedTransaction(s.getData(), rules, app);
 
             if (tpTransNew && (
                 !tpTransNew->getSTransaction ()->isEquivalent (
@@ -673,7 +674,8 @@ Json::Value transactionSign (
 
     // Make sure the STTx makes a legitimate Transaction.
     std::pair <Json::Value, Transaction::pointer> txn =
-        transactionConstructImpl (preprocResult.second, app);
+        transactionConstructImpl (preprocResult.second,
+            ledger->rules(), app);
 
     if (!txn.second)
         return txn.first;
@@ -707,7 +709,8 @@ Json::Value transactionSubmit (
 
     // Make sure the STTx makes a legitimate Transaction.
     std::pair <Json::Value, Transaction::pointer> txn =
-        transactionConstructImpl (preprocResult.second, app);
+        transactionConstructImpl (preprocResult.second,
+            ledger->rules(), app);
 
     if (!txn.second)
         return txn.first;
@@ -825,7 +828,8 @@ Json::Value transactionSignFor (
 
     // Make sure the STTx makes a legitimate Transaction.
     std::pair <Json::Value, Transaction::pointer> txn =
-        transactionConstructImpl (preprocResult.second, app);
+        transactionConstructImpl (preprocResult.second,
+            ledger->rules(), app);
 
     if (!txn.second)
         return txn.first;
@@ -927,7 +931,7 @@ Json::Value transactionSubmitMultiSigned (
     }
 
     // Grind through the JSON in tx_json to produce a STTx
-    STTx::pointer stpTrans;
+    std::shared_ptr<STTx> stpTrans;
     {
         STParsedJSONObject parsedTx_json ("tx_json", tx_json);
         if (!parsedTx_json.object)
@@ -940,8 +944,8 @@ Json::Value transactionSubmitMultiSigned (
         }
         try
         {
-            stpTrans =
-                std::make_shared<STTx> (std::move(parsedTx_json.object.get()));
+            stpTrans = std::make_shared<STTx>(
+                std::move(parsedTx_json.object.get()));
         }
         catch (std::exception& ex)
         {
@@ -1052,7 +1056,8 @@ Json::Value transactionSubmitMultiSigned (
 
     // Make sure the SerializedTransaction makes a legitimate Transaction.
     std::pair <Json::Value, Transaction::pointer> txn =
-        transactionConstructImpl (stpTrans, app);
+        transactionConstructImpl (stpTrans,
+            ledger->rules(), app);
 
     if (!txn.second)
         return txn.first;

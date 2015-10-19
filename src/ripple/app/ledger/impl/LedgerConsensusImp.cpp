@@ -42,8 +42,8 @@
 #include <ripple/json/to_string.h>
 #include <ripple/overlay/Overlay.h>
 #include <ripple/overlay/predicates.h>
-#include <ripple/protocol/STValidation.h>
-#include <ripple/protocol/UintTypes.h>
+#include <ripple/protocol/st.h>
+#include <ripple/protocol/Feature.h>
 #include <beast/module/core/text/LexicalCast.h>
 #include <beast/utility/make_lock.h>
 #include <type_traits>
@@ -653,12 +653,14 @@ void LedgerConsensusImp::handleLCL (uint256 const& lclHash)
 
             // Tell the ledger acquire system that we need the consensus ledger
             mAcquiringLedger = mPrevLedgerHash;
-            auto& previousHash = mPrevLedgerHash;
+
+            auto app = &app_;
+            auto hash = mAcquiringLedger;
             app_.getJobQueue().addJob (
                 jtADVANCE, "getConsensusLedger",
-                [&] (Job&) {
-                    app_.getInboundLedgers().acquire(
-                        previousHash, 0, InboundLedger::fcCONSENSUS);
+                [app, hash] (Job&) {
+                    app->getInboundLedgers().acquire(
+                        hash, 0, InboundLedger::fcCONSENSUS);
                 });
 
             mHaveCorrectLCL = false;
@@ -1162,7 +1164,7 @@ void LedgerConsensusImp::accept (std::shared_ptr<SHAMap> set)
                     << " not get in";
                 SerialIter sit (it.second->peekTransaction().slice());
 
-                auto txn = std::make_shared<STTx>(sit);
+                auto txn = std::make_shared<STTx const>(sit);
 
                 retriableTxs.insert (txn);
 
@@ -1820,10 +1822,6 @@ applyTransaction (Application& app, OpenView& view,
     if (retryAssured)
         flags = flags | tapRETRY;
 
-    if ((app.getHashRouter ().getFlags (txn->getTransactionID ())
-            & SF_SIGGOOD) == SF_SIGGOOD)
-        flags = flags | tapNO_CHECK_SIGN;
-
     JLOG (j.debug) << "TXN "
         << txn->getTransactionID ()
         //<< (engine.view().open() ? " open" : " closed")
@@ -1833,9 +1831,8 @@ applyTransaction (Application& app, OpenView& view,
 
     try
     {
-        auto const result = apply(app, view, *txn, flags,
-            app.getHashRouter().sigVerify(),
-                app.config(), j);
+        auto const result = apply(app,
+            view, *txn, flags, j);
         if (result.second)
         {
             JLOG (j.debug)

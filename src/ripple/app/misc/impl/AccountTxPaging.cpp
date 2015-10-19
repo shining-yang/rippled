@@ -40,11 +40,10 @@ convertBlobsToTxResult (
     Application& app)
 {
     SerialIter it (makeSlice(rawTxn));
-    STTx::pointer txn = std::make_shared<STTx> (it);
+    auto txn = std::make_shared<STTx const> (it);
     std::string reason;
 
-    auto tr = std::make_shared<Transaction> (txn, Validate::NO,
-        directSigVerify, reason, app);
+    auto tr = std::make_shared<Transaction> (txn, reason, app);
 
     tr->setStatus (Transaction::sqlTransactionStatus(status));
     tr->setLedger (ledger_index);

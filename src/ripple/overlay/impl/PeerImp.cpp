@@ -28,6 +28,7 @@
 #include <ripple/overlay/ClusterNodeStatus.h>
 #include <ripple/app/misc/UniqueNodeList.h>
 #include <ripple/app/tx/InboundTransactions.h>
+#include <ripple/app/tx/apply.h>
 #include <ripple/protocol/digest.h>
 #include <ripple/basics/StringUtilities.h>
 #include <ripple/basics/UptimeTimer.h>
@@ -191,6 +192,10 @@ PeerImp::send (Message::pointer const& m)
         return;
     if(detaching_)
         return;
+
+    overlay_.reportTraffic (
+        static_cast<TrafficCount::category>(m->getCategory()),
+        false, static_cast<int>(m->getBuffer().size()));
 
     auto sendq_size = send_queue_.size();
 
@@ -813,11 +818,14 @@ PeerImp::onMessageUnknown (std::uint16_t type)
 
 PeerImp::error_code
 PeerImp::onMessageBegin (std::uint16_t type,
-    std::shared_ptr <::google::protobuf::Message> const& m)
+    std::shared_ptr <::google::protobuf::Message> const& m,
+    std::size_t size)
 {
     load_event_ = app_.getJobQueue ().getLoadEventAP (
         jtPEER, protocolMessageName(type));
     fee_ = Resource::feeLightPeer;
+    overlay_.reportTraffic (TrafficCount::categorize (*m, type, true),
+        true, static_cast<int>(size));
     return error_code{};
 }
 
@@ -1023,7 +1031,7 @@ PeerImp::onMessage (std::shared_ptr <protocol::TMTransaction> const& m)
 
     try
     {
-        auto stx = std::make_shared<STTx>(sit);
+        auto stx = std::make_shared<STTx const>(sit);
         uint256 txID = stx->getTransactionID ();
 
         int flags;
@@ -1045,6 +1053,7 @@ PeerImp::onMessage (std::shared_ptr <protocol::TMTransaction> const& m)
         p_journal_.debug <<
             "Got tx " << txID;
 
+        bool checkSignature = true;
         if (cluster())
         {
             if (! m->has_deferred () || ! m->deferred ())
@@ -1058,7 +1067,7 @@ PeerImp::onMessage (std::shared_ptr <protocol::TMTransaction> const& m)
             {
                 // For now, be paranoid and have each validator
                 // check each transaction, regardless of source
-                flags |= SF_SIGGOOD;
+                checkSignature = false;
             }
         }
 
@@ -1071,9 +1080,10 @@ PeerImp::onMessage (std::shared_ptr <protocol::TMTransaction> const& m)
             std::weak_ptr<PeerImp> weak = shared_from_this();
             app_.getJobQueue ().addJob (
                 jtTRANSACTION, "recvTransaction->checkTransaction",
-                [weak, flags, stx] (Job&) {
+                [weak, flags, checkSignature, stx] (Job&) {
                     if (auto peer = weak.lock())
-                        peer->checkTransaction(flags, stx);
+                        peer->checkTransaction(flags,
+                            checkSignature, stx);
                 });
         }
     }
@@ -1705,7 +1715,8 @@ PeerImp::doFetchPack (const std::shared_ptr<protocol::TMGetObjectByHash>& packet
 }
 
 void
-PeerImp::checkTransaction (int flags, STTx::pointer stx)
+PeerImp::checkTransaction (int flags,
+    bool checkSignature, std::shared_ptr<STTx const> const& stx)
 {
     // VFALCO TODO Rewrite to not use exceptions
     try
@@ -1720,11 +1731,36 @@ PeerImp::checkTransaction (int flags, STTx::pointer stx)
             return;
         }
 
-        auto validate = (flags & SF_SIGGOOD) ? Validate::NO : Validate::YES;
+        if (checkSignature)
+        {
+            // Check the signature before handing off to the job queue.
+            auto valid = checkValidity(app_.getHashRouter(), *stx,
+                app_.getLedgerMaster().getValidatedRules(),
+                    app_.config());
+            if (valid.first != Validity::Valid)
+            {
+                if (!valid.second.empty())
+                {
+                    JLOG(p_journal_.trace) <<
+                        "Exception checking transaction: " <<
+                            valid.second;
+                }
+
+                // Probably not necessary to set SF_BAD, but doesn't hurt.
+                app_.getHashRouter().setFlags(stx->getTransactionID(), SF_BAD);
+                charge(Resource::feeInvalidSignature);
+                return;
+            }
+        }
+        else
+        {
+            forceValidity(app_.getHashRouter(),
+                stx->getTransactionID(), Validity::Valid);
+        }
+
         std::string reason;
-        auto tx = std::make_shared<Transaction> (stx, validate,
-            directSigVerify,
-            reason, app_);
+        auto tx = std::make_shared<Transaction> (
+            stx, reason, app_);
 
         if (tx->getStatus () == INVALID)
         {
@@ -1734,10 +1770,6 @@ PeerImp::checkTransaction (int flags, STTx::pointer stx)
             app_.getHashRouter ().setFlags (stx->getTransactionID (), SF_BAD);
             charge (Resource::feeInvalidSignature);
             return;
-        }
-        else
-        {
-            app_.getHashRouter ().setFlags (stx->getTransactionID (), SF_SIGGOOD);
         }
 
         bool const trusted (flags & SF_TRUSTED);
@@ -2150,7 +2182,9 @@ PeerImp::getLedger (std::shared_ptr<protocol::TMGetLedger> const& m)
             (std::min(packet.querydepth(), 3u)) :
             (isHighLatency() ? 2 : 1);
 
-    for (int i = 0; i < packet.nodeids ().size (); ++i)
+    for (int i = 0;
+            (i < packet.nodeids().size() &&
+            (reply.nodes().size() < Tuning::maxReplyNodes)); ++i)
     {
         SHAMapNodeID mn (packet.nodeids (i).data (), packet.nodeids (i).size ());
 
@@ -2241,10 +2275,17 @@ PeerImp::getScore (bool haveItem) const
 
    // Score for being very likely to have the thing we are
    // look for
+   // Should be roughly spRandom
    static const int spHaveItem =   10000;
 
    // Score reduction for each millisecond of latency
-   static const int spLatency  =     100;
+   // Should be roughly spRandom divided by
+   // the maximum reasonable latency
+   static const int spLatency  =      30;
+
+   // Penalty for unknown latency
+   // Should be roughly spRandom
+   static const int spNoLatency =   8000;
 
    int score = rand() % spRandom;
 
@@ -2259,6 +2300,8 @@ PeerImp::getScore (bool haveItem) const
    }
    if (latency != std::chrono::milliseconds (-1))
        score -= latency.count() * spLatency;
+   else
+       score -= spNoLatency;
 
    return score;
 }

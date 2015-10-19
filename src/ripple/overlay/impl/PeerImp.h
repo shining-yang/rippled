@@ -403,7 +403,8 @@ public:
 
     error_code
     onMessageBegin (std::uint16_t type,
-        std::shared_ptr <::google::protobuf::Message> const& m);
+        std::shared_ptr <::google::protobuf::Message> const& m,
+        std::size_t size);
 
     void
     onMessageEnd (std::uint16_t type,
@@ -448,7 +449,8 @@ private:
     doFetchPack (const std::shared_ptr<protocol::TMGetObjectByHash>& packet);
 
     void
-    checkTransaction (int flags, STTx::pointer stx);
+    checkTransaction (int flags, bool checkSignature,
+        std::shared_ptr<STTx const> const& stx);
 
     void
     checkPropose (Job& job,

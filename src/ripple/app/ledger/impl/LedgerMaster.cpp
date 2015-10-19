@@ -378,13 +378,8 @@ public:
                 for (auto const& it : mHeldTransactions)
                 {
                     ApplyFlags flags = tapNONE;
-                    if (app_.getHashRouter().addSuppressionFlags (
-                            it.first.getTXID (), SF_SIGGOOD))
-                        flags = flags | tapNO_CHECK_SIGN;
-
                     auto const result = apply(app_, view,
-                        *it.second, flags, app_.getHashRouter(
-                            ).sigVerify(), app_.config(), j);
+                        *it.second, flags, j);
                     if (result.second)
                         any = true;
                 }
@@ -480,12 +475,12 @@ public:
             // Best effort for remaining exclusions
             for(auto v : pendingSaves)
             {
-                if ((v >= minVal) && (v <= maxVal))
+                if ((v.first >= minVal) && (v.first <= maxVal))
                 {
-                    if (v > ((minVal + maxVal) / 2))
-                        maxVal = v - 1;
+                    if (v.first > ((minVal + maxVal) / 2))
+                        maxVal = v.first - 1;
                     else
-                        minVal = v + 1;
+                        minVal = v.first + 1;
                 }
             }
 
