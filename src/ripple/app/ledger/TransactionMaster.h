@@ -17,51 +17,50 @@
 */
 //==============================================================================
 
-#ifndef RIPPLE_RPC_IMPL_UTILITIES_H_INCLUDED
-#define RIPPLE_RPC_IMPL_UTILITIES_H_INCLUDED
+#ifndef RIPPLE_APP_LEDGER_TRANSACTIONMASTER_H_INCLUDED
+#define RIPPLE_APP_LEDGER_TRANSACTIONMASTER_H_INCLUDED
 
-#include <ripple/ledger/TxMeta.h>
-#include <ripple/rpc/impl/Tuning.h>
-
-namespace Json {
-class Value;
-}
+#include <ripple/shamap/SHAMapItem.h>
+#include <ripple/shamap/SHAMapTreeNode.h>
 
 namespace ripple {
 
+class Application;
 class Transaction;
+class STTx;
 
-namespace RPC {
+// Tracks all transactions in memory
 
-struct Context;
+class TransactionMaster
+{
+public:
+    TransactionMaster (Application& app);
+    TransactionMaster (TransactionMaster const&) = delete;
+    TransactionMaster& operator= (TransactionMaster const&) = delete;
 
-void
-addPaymentDeliveredAmount (
-    Json::Value&,
-    Context&,
-    std::shared_ptr<Transaction>,
-    TxMeta::pointer);
+    std::shared_ptr<Transaction>
+    fetch (uint256 const& , bool checkDisk);
 
-/** Inject JSON describing ledger entry
+    std::shared_ptr<STTx const>
+    fetch (std::shared_ptr<SHAMapItem> const& item,
+        SHAMapTreeNode::TNType type, bool checkDisk,
+            std::uint32_t uCommitLedger);
 
-    Effects:
-        Adds the JSON description of `sle` to `jv`.
+    // return value: true = we had the transaction already
+    bool inLedger (uint256 const& hash, std::uint32_t ledger);
 
-        If `sle` holds an account root, also adds the
-        urlgravatar field JSON if sfEmailHash is present.
-*/
-void
-injectSLE (Json::Value& jv,
-    SLE const& sle);
+    void canonicalize (std::shared_ptr<Transaction>* pTransaction);
 
-/** Retrieve the limit value from a Context, or set a default -
-    then restrict the limit by max and min if not an ADMIN request.
+    void sweep (void);
 
-    If there is an error, return it as JSON. */
-boost::optional<Json::Value> readLimitField(
-    unsigned int& limit, Tuning::LimitRange const&, Context const&);
+    TaggedCache <uint256, Transaction>&
+    getCache();
 
-} // RPC
+private:
+    Application& mApp;
+    TaggedCache <uint256, Transaction> mCache;
+};
+
 } // ripple
 
 #endif

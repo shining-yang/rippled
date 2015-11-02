@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 /*
     This file is part of rippled: https://github.com/ripple/rippled
-    Copyright (c) 2012, 2013 Ripple Labs Inc.
+    Copyright (c) 2012-2015 Ripple Labs Inc.
 
     Permission to use, copy, modify, and/or distribute this software for any
     purpose  with  or without fee is hereby granted, provided that the above
@@ -17,39 +17,25 @@
 */
 //==============================================================================
 
-#ifndef RIPPLE_APP_TX_LOCALTXS_H_INCLUDED
-#define RIPPLE_APP_TX_LOCALTXS_H_INCLUDED
+#include <BeastConfig.h>
+#include <ripple/app/misc/TxQ.h>
+#include <ripple/app/ledger/LedgerMaster.h>
+#include <ripple/rpc/Context.h>
+#include <ripple/protocol/ErrorCodes.h>
+#include <ripple/protocol/Feature.h>
 
-#include <ripple/app/ledger/Ledger.h>
-#include <ripple/app/misc/CanonicalTXSet.h>
-#include <memory>
-
-namespace ripple {
-
-// Track transactions issued by local clients
-// Ensure we always apply them to our open ledger
-// Hold them until we see them in a fully-validated ledger
-
-class LocalTxs
+namespace ripple
 {
-public:
-    virtual ~LocalTxs () = default;
+    Json::Value doFee(RPC::Context& context)
+    {
+        // Bail if fee escalation is not enabled.
+        if (!context.app.getLedgerMaster().getValidatedRules().
+            enabled(featureFeeEscalation, context.app.config().features))
+        {
+            RPC::inject_error(rpcNOT_ENABLED, context.params);
+            return context.params;
+        }
 
-    // Add a new local transaction
-    virtual void push_back (LedgerIndex index, std::shared_ptr<STTx const> const& txn) = 0;
-
-    // Return the set of local transactions to a new open ledger
-    virtual CanonicalTXSet getTxSet () = 0;
-
-    // Remove obsolete transactions based on a new fully-valid ledger
-    virtual void sweep (Ledger::ref validLedger) = 0;
-
-    virtual std::size_t size () = 0;
-};
-
-std::unique_ptr<LocalTxs>
-make_LocalTxs ();
-
+        return context.app.getTxQ().doRPC(context.app);
+    }
 } // ripple
-
-#endif

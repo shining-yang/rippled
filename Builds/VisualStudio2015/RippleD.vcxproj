@@ -1360,6 +1360,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\..\src\ripple\app\ledger\impl\InboundTransactions.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\src\ripple\app\ledger\impl\LedgerCleaner.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
@@ -1384,13 +1388,29 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\..\src\ripple\app\ledger\impl\LocalTxs.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\src\ripple\app\ledger\impl\OpenLedger.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ripple\app\ledger\impl\TransactionAcquire.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
+    </ClCompile>
+    <ClInclude Include="..\..\src\ripple\app\ledger\impl\TransactionAcquire.h">
+    </ClInclude>
+    <ClCompile Include="..\..\src\ripple\app\ledger\impl\TransactionMaster.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
     </ClCompile>
     <ClInclude Include="..\..\src\ripple\app\ledger\InboundLedger.h">
     </ClInclude>
     <ClInclude Include="..\..\src\ripple\app\ledger\InboundLedgers.h">
+    </ClInclude>
+    <ClInclude Include="..\..\src\ripple\app\ledger\InboundTransactions.h">
     </ClInclude>
     <ClCompile Include="..\..\src\ripple\app\ledger\Ledger.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
@@ -1420,6 +1440,8 @@
     </ClInclude>
     <ClInclude Include="..\..\src\ripple\app\ledger\LedgerToJson.h">
     </ClInclude>
+    <ClInclude Include="..\..\src\ripple\app\ledger\LocalTxs.h">
+    </ClInclude>
     <ClInclude Include="..\..\src\ripple\app\ledger\OpenLedger.h">
     </ClInclude>
     <ClCompile Include="..\..\src\ripple\app\ledger\OrderBookDB.cpp">
@@ -1429,6 +1451,8 @@
     <ClInclude Include="..\..\src\ripple\app\ledger\OrderBookDB.h">
     </ClInclude>
     <ClInclude Include="..\..\src\ripple\app\ledger\PendingSaves.h">
+    </ClInclude>
+    <ClInclude Include="..\..\src\ripple\app\ledger\TransactionMaster.h">
     </ClInclude>
     <ClCompile Include="..\..\src\ripple\app\ledger\TransactionStateSF.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
@@ -1514,6 +1538,14 @@
     </ClCompile>
     <ClInclude Include="..\..\src\ripple\app\misc\impl\AccountTxPaging.h">
     </ClInclude>
+    <ClCompile Include="..\..\src\ripple\app\misc\impl\Transaction.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ripple\app\misc\impl\TxQ.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\src\ripple\app\misc\NetworkOPs.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
@@ -1529,6 +1561,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
     </ClCompile>
     <ClInclude Include="..\..\src\ripple\app\misc\SHAMapStoreImp.h">
+    </ClInclude>
+    <ClInclude Include="..\..\src\ripple\app\misc\Transaction.h">
+    </ClInclude>
+    <ClInclude Include="..\..\src\ripple\app\misc\TxQ.h">
     </ClInclude>
     <ClCompile Include="..\..\src\ripple\app\misc\UniqueNodeList.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
@@ -1714,7 +1750,13 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\..\src\ripple\app\tests\TxQ_test.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
+    </ClCompile>
     <ClInclude Include="..\..\src\ripple\app\tx\apply.h">
+    </ClInclude>
+    <ClInclude Include="..\..\src\ripple\app\tx\applySteps.h">
     </ClInclude>
     <ClCompile Include="..\..\src\ripple\app\tx\impl\apply.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
@@ -1726,8 +1768,10 @@
     </ClCompile>
     <ClInclude Include="..\..\src\ripple\app\tx\impl\ApplyContext.h">
     </ClInclude>
-    <ClInclude Include="..\..\src\ripple\app\tx\impl\applyImpl.h">
-    </ClInclude>
+    <ClCompile Include="..\..\src\ripple\app\tx\impl\applySteps.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\src\ripple\app\tx\impl\BookTip.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
@@ -1764,14 +1808,6 @@
     </ClCompile>
     <ClInclude Include="..\..\src\ripple\app\tx\impl\CreateTicket.h">
     </ClInclude>
-    <ClCompile Include="..\..\src\ripple\app\tx\impl\InboundTransactions.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ripple\app\tx\impl\LocalTxs.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
-    </ClCompile>
     <ClInclude Include="..\..\src\ripple\app\tx\impl\Offer.h">
     </ClInclude>
     <ClCompile Include="..\..\src\ripple\app\tx\impl\OfferStream.cpp">
@@ -1828,33 +1864,11 @@
     </ClCompile>
     <ClInclude Include="..\..\src\ripple\app\tx\impl\Taker.h">
     </ClInclude>
-    <ClCompile Include="..\..\src\ripple\app\tx\impl\Transaction.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ripple\app\tx\impl\TransactionAcquire.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ripple\app\tx\impl\TransactionMaster.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="..\..\src\ripple\app\tx\impl\Transactor.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
     </ClCompile>
     <ClInclude Include="..\..\src\ripple\app\tx\impl\Transactor.h">
-    </ClInclude>
-    <ClInclude Include="..\..\src\ripple\app\tx\InboundTransactions.h">
-    </ClInclude>
-    <ClInclude Include="..\..\src\ripple\app\tx\LocalTxs.h">
-    </ClInclude>
-    <ClInclude Include="..\..\src\ripple\app\tx\Transaction.h">
-    </ClInclude>
-    <ClInclude Include="..\..\src\ripple\app\tx\TransactionAcquire.h">
-    </ClInclude>
-    <ClInclude Include="..\..\src\ripple\app\tx\TransactionMaster.h">
     </ClInclude>
     <ClInclude Include="..\..\src\ripple\basics\base_uint.h">
     </ClInclude>
@@ -3180,6 +3194,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\src\ripple\rpc\handlers\Feature1.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ripple\rpc\handlers\Fee1.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">True</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">True</ExcludedFromBuild>
     </ClCompile>

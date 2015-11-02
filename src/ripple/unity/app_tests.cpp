@@ -33,3 +33,4 @@
 #include <ripple/app/tests/SetAuth_test.cpp>
 #include <ripple/app/tests/OversizeMeta_test.cpp>
 #include <ripple/app/tests/Taker.test.cpp>
+#include <ripple/app/tests/TxQ_test.cpp>

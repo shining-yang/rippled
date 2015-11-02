@@ -17,48 +17,38 @@
 */
 //==============================================================================
 
-#ifndef RIPPLE_APP_TX_TRANSACTIONMASTER_H_INCLUDED
-#define RIPPLE_APP_TX_TRANSACTIONMASTER_H_INCLUDED
+#ifndef RIPPLE_APP_LEDGER_LOCALTXS_H_INCLUDED
+#define RIPPLE_APP_LEDGER_LOCALTXS_H_INCLUDED
 
-#include <ripple/app/tx/Transaction.h>
-#include <ripple/shamap/SHAMapItem.h>
-#include <ripple/shamap/SHAMapTreeNode.h>
+#include <ripple/app/ledger/Ledger.h>
+#include <ripple/app/misc/CanonicalTXSet.h>
+#include <memory>
 
 namespace ripple {
 
-class Application;
+// Track transactions issued by local clients
+// Ensure we always apply them to our open ledger
+// Hold them until we see them in a fully-validated ledger
 
-// Tracks all transactions in memory
-
-class TransactionMaster
+class LocalTxs
 {
 public:
-    TransactionMaster (Application& app);
-    TransactionMaster (TransactionMaster const&) = delete;
-    TransactionMaster& operator= (TransactionMaster const&) = delete;
+    virtual ~LocalTxs () = default;
 
-    Transaction::pointer
-    fetch (uint256 const& , bool checkDisk);
+    // Add a new local transaction
+    virtual void push_back (LedgerIndex index, std::shared_ptr<STTx const> const& txn) = 0;
 
-    std::shared_ptr<STTx const>
-    fetch (std::shared_ptr<SHAMapItem> const& item,
-        SHAMapTreeNode:: TNType type,
-            bool checkDisk, std::uint32_t uCommitLedger);
+    // Return the set of local transactions to a new open ledger
+    virtual CanonicalTXSet getTxSet () = 0;
 
-    // return value: true = we had the transaction already
-    bool inLedger (uint256 const& hash, std::uint32_t ledger);
+    // Remove obsolete transactions based on a new fully-valid ledger
+    virtual void sweep (Ledger::ref validLedger) = 0;
 
-    void canonicalize (Transaction::pointer* pTransaction);
-
-    void sweep (void);
-
-    TaggedCache <uint256, Transaction>&
-    getCache();
-
-private:
-    Application& mApp;
-    TaggedCache <uint256, Transaction> mCache;
+    virtual std::size_t size () = 0;
 };
+
+std::unique_ptr<LocalTxs>
+make_LocalTxs ();
 
 } // ripple
 

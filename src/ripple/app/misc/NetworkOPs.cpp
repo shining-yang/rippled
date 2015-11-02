@@ -29,17 +29,20 @@
 #include <ripple/app/ledger/LedgerMaster.h>
 #include <ripple/app/ledger/LedgerTiming.h>
 #include <ripple/app/ledger/LedgerToJson.h>
+#include <ripple/app/ledger/LocalTxs.h>
 #include <ripple/app/ledger/OpenLedger.h>
 #include <ripple/app/ledger/OrderBookDB.h>
+#include <ripple/app/ledger/TransactionMaster.h>
 #include <ripple/app/main/LoadManager.h>
 #include <ripple/app/main/LocalCredentials.h>
 #include <ripple/app/misc/HashRouter.h>
 #include <ripple/app/misc/NetworkOPs.h>
+#include <ripple/app/misc/TxQ.h>
 #include <ripple/app/misc/Validations.h>
+#include <ripple/app/misc/Transaction.h>
 #include <ripple/app/misc/impl/AccountTxPaging.h>
 #include <ripple/app/misc/UniqueNodeList.h>
 #include <ripple/app/tx/apply.h>
-#include <ripple/app/tx/TransactionMaster.h>
 #include <ripple/basics/Log.h>
 #include <ripple/basics/Time.h>
 #include <ripple/protocol/digest.h>
@@ -84,7 +87,7 @@ class NetworkOPsImp final
     class TransactionStatus
     {
     public:
-        Transaction::pointer transaction;
+        std::shared_ptr<Transaction> transaction;
         bool admin;
         bool local;
         FailHard failType;
@@ -92,7 +95,7 @@ class NetworkOPsImp final
         TER result;
 
         TransactionStatus (
-                Transaction::pointer t,
+                std::shared_ptr<Transaction> t,
                 bool a,
                 bool l,
                 FailHard f)
@@ -158,7 +161,7 @@ public:
     void submitTransaction (std::shared_ptr<STTx const> const&) override;
 
     void processTransaction (
-        Transaction::pointer& transaction,
+        std::shared_ptr<Transaction>& transaction,
         bool bAdmin, bool bLocal, FailHard failType) override;
 
     /**
@@ -169,7 +172,7 @@ public:
      * @param bAdmin Whether an administrative client connection submitted it.
      * @param failType fail_hard setting from transaction submission.
      */
-    void doTransactionSync (Transaction::pointer transaction,
+    void doTransactionSync (std::shared_ptr<Transaction> transaction,
         bool bAdmin, FailHard failType);
 
     /**
@@ -181,7 +184,7 @@ public:
      * @param bAdmin Whether an administrative client connection submitted it.
      * @param failType fail_hard setting from transaction submission.
      */
-    void doTransactionAsync (Transaction::pointer transaction,
+    void doTransactionAsync (std::shared_ptr<Transaction> transaction,
         bool bAdmin, FailHard failtype);
 
     /**
@@ -379,6 +382,10 @@ public:
     bool subValidations (InfoSub::ref ispListener) override;
     bool unsubValidations (std::uint64_t uListener) override;
 
+    bool subPeerStatus (InfoSub::ref ispListener) override;
+    bool unsubPeerStatus (std::uint64_t uListener) override;
+    void pubPeerStatus (std::function<Json::Value(void)> const&) override;
+
     InfoSub::pointer findRpcSub (std::string const& strUrl) override;
     InfoSub::pointer addRpcSub (
         std::string const& strUrl, InfoSub::ref) override;
@@ -461,6 +468,7 @@ private:
     SubMapType mSubTransactions;      // All accepted transactions.
     SubMapType mSubRTTransactions;    // All proposed and accepted transactions.
     SubMapType mSubValidations;       // Received validations.
+    SubMapType mSubPeerStatus;        // peer status changes
 
     std::uint32_t mLastLoadBase;
     std::uint32_t mLastLoadFactor;
@@ -698,7 +706,7 @@ void NetworkOPsImp::submitTransaction (std::shared_ptr<STTx const> const& iTrans
     });
 }
 
-void NetworkOPsImp::processTransaction (Transaction::pointer& transaction,
+void NetworkOPsImp::processTransaction (std::shared_ptr<Transaction>& transaction,
         bool bAdmin, bool bLocal, FailHard failType)
 {
     auto ev = m_job_queue.getLoadEventAP (jtTXN_PROC, "ProcessTXN");
@@ -743,7 +751,7 @@ void NetworkOPsImp::processTransaction (Transaction::pointer& transaction,
         doTransactionAsync (transaction, bAdmin, failType);
 }
 
-void NetworkOPsImp::doTransactionAsync (Transaction::pointer transaction,
+void NetworkOPsImp::doTransactionAsync (std::shared_ptr<Transaction> transaction,
         bool bAdmin, FailHard failType)
 {
     std::lock_guard<std::mutex> lock (mMutex);
@@ -763,7 +771,7 @@ void NetworkOPsImp::doTransactionAsync (Transaction::pointer transaction,
     }
 }
 
-void NetworkOPsImp::doTransactionSync (Transaction::pointer transaction,
+void NetworkOPsImp::doTransactionSync (std::shared_ptr<Transaction> transaction,
         bool bAdmin, FailHard failType)
 {
     std::unique_lock<std::mutex> lock (mMutex);
@@ -839,8 +847,9 @@ void NetworkOPsImp::apply (std::unique_lock<std::mutex>& batchLock)
                     if (e.admin)
                         flags = flags | tapADMIN;
 
-                    auto const result = ripple::apply(app_, view,
-                        *e.transaction->getSTransaction(), flags, j);
+                    auto const result = app_.getTxQ().apply(
+                        app_, view, e.transaction->getSTransaction(),
+                        flags, j);
                     e.result = result.first;
                     e.applied = result.second;
                     changed = changed || result.second;
@@ -887,6 +896,16 @@ void NetworkOPsImp::apply (std::unique_lock<std::mutex>& batchLock)
                 m_journal.info << "Transaction is obsolete";
                 e.transaction->setStatus (OBSOLETE);
             }
+            else if (e.result == terQUEUED)
+            {
+                JLOG(m_journal.info) << "Transaction is likely to claim a " <<
+                    "fee, but is queued until fee drops";
+                e.transaction->setStatus(HELD);
+                // Add to held transactions, because it could get
+                // kicked out of the queue, and this will try to
+                // put it back.
+                m_ledgerMaster.addHeldTransaction(e.transaction);
+            }
             else if (isTerRetry (e.result))
             {
                 if (e.failType == FailHard::yes)
@@ -914,8 +933,9 @@ void NetworkOPsImp::apply (std::unique_lock<std::mutex>& batchLock)
                     e.transaction->getSTransaction());
             }
 
-            if (e.applied ||
-                    ((mMode != omFULL) && (e.failType != FailHard::yes) && e.local))
+            if (e.applied || ((mMode != omFULL) &&
+                (e.failType != FailHard::yes) && e.local) ||
+                    (e.result == terQUEUED))
             {
                 std::set<Peer::id_t> peers;
 
@@ -929,6 +949,7 @@ void NetworkOPsImp::apply (std::unique_lock<std::mutex>& batchLock)
                     tx.set_rawtransaction (&s.getData().front(), s.getLength());
                     tx.set_status (protocol::tsCURRENT);
                     tx.set_receivetimestamp (app_.timeKeeper().now().time_since_epoch().count());
+                    tx.set_deferred(e.result == terQUEUED);
                     // FIXME: This should be when we received it
                     app_.overlay().foreach (send_if_not (
                         std::make_shared<Message> (tx, protocol::mtTRANSACTION),
@@ -1254,6 +1275,11 @@ void NetworkOPsImp::switchLastClosedLedger (
 
     clearNeedNetworkLedger ();
     newLCL->setClosed ();
+
+    // Update fee computations.
+    // TODO: Needs an open ledger
+    //app_.getTxQ().processValidatedLedger(app_, *newLCL, true);
+
     // Caller must own master lock
     {
         // Apply tx in old open ledger to new
@@ -1269,7 +1295,12 @@ void NetworkOPsImp::switchLastClosedLedger (
             rules.emplace();
         app_.openLedger().accept(app_, *rules,
             newLCL, OrderedTxs({}), false, retries,
-                tapNONE, app_.getHashRouter(), "jump");
+                tapNONE, "jump",
+                    [&](OpenView& view, beast::Journal j)
+                    {
+                        // Stuff the ledger with transactions from the queue.
+                        return app_.getTxQ().accept(app_, view);
+                    });
     }
 
     m_ledgerMaster.switchLCL (newLCL);
@@ -1514,6 +1545,33 @@ void NetworkOPsImp::pubValidation (STValidation::ref val)
     }
 }
 
+void NetworkOPsImp::pubPeerStatus (
+    std::function<Json::Value(void)> const& func)
+{
+    ScopedLockType sl (mSubLock);
+
+    if (!mSubPeerStatus.empty ())
+    {
+        Json::Value jvObj (func());
+
+        jvObj [jss::type]                  = "peerStatusChange";
+
+        for (auto i = mSubPeerStatus.begin (); i != mSubPeerStatus.end (); )
+        {
+            InfoSub::pointer p = i->second.lock ();
+
+            if (p)
+            {
+                p->send (jvObj, true);
+                ++i;
+            }
+            else
+            {
+                i = mSubValidations.erase (i);
+            }
+        }
+    }
+}
 
 void NetworkOPsImp::setMode (OperatingMode om)
 {
@@ -2512,6 +2570,20 @@ bool NetworkOPsImp::unsubValidations (std::uint64_t uSeq)
 {
     ScopedLockType sl (mSubLock);
     return mSubValidations.erase (uSeq);
+}
+
+// <-- bool: true=added, false=already there
+bool NetworkOPsImp::subPeerStatus (InfoSub::ref isrListener)
+{
+    ScopedLockType sl (mSubLock);
+    return mSubPeerStatus.emplace (isrListener->getSeq (), isrListener).second;
+}
+
+// <-- bool: true=erased, false=was not there
+bool NetworkOPsImp::unsubPeerStatus (std::uint64_t uSeq)
+{
+    ScopedLockType sl (mSubLock);
+    return mSubPeerStatus.erase (uSeq);
 }
 
 InfoSub::pointer NetworkOPsImp::findRpcSub (std::string const& strUrl)

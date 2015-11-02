@@ -23,11 +23,12 @@
 #include <ripple/overlay/impl/Tuning.h>
 #include <ripple/app/ledger/InboundLedgers.h>
 #include <ripple/app/ledger/LedgerMaster.h>
+#include <ripple/app/ledger/InboundTransactions.h>
 #include <ripple/app/misc/HashRouter.h>
 #include <ripple/app/misc/NetworkOPs.h>
+#include <ripple/app/misc/Transaction.h>
 #include <ripple/overlay/ClusterNodeStatus.h>
 #include <ripple/app/misc/UniqueNodeList.h>
-#include <ripple/app/tx/InboundTransactions.h>
 #include <ripple/app/tx/apply.h>
 #include <ripple/protocol/digest.h>
 #include <ripple/basics/StringUtilities.h>
@@ -292,6 +293,9 @@ PeerImp::json()
         if (latency != std::chrono::milliseconds (-1))
             ret[jss::latency] = static_cast<Json::UInt> (latency.count());
     }
+
+    ret[jss::uptime] = static_cast<Json::UInt>(
+        std::chrono::duration_cast<std::chrono::seconds>(uptime()).count());
 
     std::uint32_t minSeq, maxSeq;
     ledgerRange(minSeq, maxSeq);
@@ -1077,10 +1081,10 @@ PeerImp::onMessage (std::shared_ptr <protocol::TMTransaction> const& m)
             p_journal_.trace << "No new transactions until synchronized";
         else
         {
-            std::weak_ptr<PeerImp> weak = shared_from_this();
             app_.getJobQueue ().addJob (
                 jtTRANSACTION, "recvTransaction->checkTransaction",
-                [weak, flags, checkSignature, stx] (Job&) {
+                [weak = std::weak_ptr<PeerImp>(shared_from_this()),
+                flags, checkSignature, stx] (Job&) {
                     if (auto peer = weak.lock())
                         peer->checkTransaction(flags,
                             checkSignature, stx);
@@ -1331,6 +1335,78 @@ PeerImp::onMessage (std::shared_ptr <protocol::TMStatusChange> const& m)
     {
         checkSanity (m->ledgerseq(), app_.getLedgerMaster().getValidLedgerIndex());
     }
+
+    app_.getOPs().pubPeerStatus (
+        [=]() -> Json::Value
+        {
+            Json::Value j = Json::objectValue;
+
+            if (m->has_newstatus ())
+            {
+               switch (m->newstatus ())
+               {
+                   case protocol::nsCONNECTING:
+                       j[jss::status] = "CONNECTING";
+                       break;
+                   case protocol::nsCONNECTED:
+                       j[jss::status] = "CONNECTED";
+                       break;
+                   case protocol::nsMONITORING:
+                       j[jss::status] = "MONITORING";
+                       break;
+                   case protocol::nsVALIDATING:
+                       j[jss::status] = "VALIDATING";
+                       break;
+                   case protocol::nsSHUTTING:
+                       j[jss::status] = "SHUTTING";
+                       break;
+               }
+            }
+
+            if (m->has_newevent())
+            {
+                switch (m->newevent ())
+                {
+                    case protocol::neCLOSING_LEDGER:
+                        j[jss::action] = "CLOSING_LEDGER";
+                        break;
+                    case protocol::neACCEPTED_LEDGER:
+                        j[jss::action] = "ACCEPTED_LEDGER";
+                        break;
+                    case protocol::neSWITCHED_LEDGER:
+                        j[jss::action] = "SWITCHED_LEDGER";
+                        break;
+                    case protocol::neLOST_SYNC:
+                        j[jss::action] = "LOST_SYNC";
+                        break;
+                }
+            }
+
+            if (m->has_ledgerseq ())
+            {
+                j[jss::ledger_index] = m->ledgerseq();
+            }
+
+            if (m->has_ledgerhash ())
+            {
+                j[jss::ledger_hash] = to_string (closedLedgerHash_);
+            }
+
+            if (m->has_networktime ())
+            {
+                j[jss::date] = Json::UInt (m->networktime());
+            }
+
+            if (m->has_firstseq () && m->has_lastseq ())
+            {
+                j[jss::ledger_index_min] =
+                    Json::UInt (m->firstseq ());
+                j[jss::ledger_index_max] =
+                    Json::UInt (m->lastseq ());
+            }
+
+            return j;
+        });
 }
 
 void
